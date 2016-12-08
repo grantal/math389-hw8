@@ -15,7 +15,10 @@ void print2DArray(int l, int w, int a[l][w]){
 
 // takes before and makes after the result after 1 application of
 // the rules of the sandpile
-void update(int l, int w, int before[l][w], int after[l][w]){
+// returns 0 if the pile has changed from before to after and 1
+// if the pile has not changed
+int update(int l, int w, int before[l][w], int after[l][w]){
+    int nochange = 1;
     for (int i = 0; i < l; i++){
         for(int j = 0; j < w; j++){
             // first set after to before            
@@ -37,8 +40,13 @@ void update(int l, int w, int before[l][w], int after[l][w]){
             if (j < (w-1) && before[i][j+1] > 4) {
                 after[i][j] += 1;
             }
+            // if after is different from before, set nochange to 0
+            if (after[i][j] != before[i][j]){
+                nochange = 0; 
+            }
         }
     }
+    return nochange;
 }
 
 // swaps 2 2d int arrays
@@ -70,13 +78,12 @@ int main(int argc, char **argv) {
             after[i][j] = HEIGHT_MAX;
         }
     }
-    // keep updating
+    // keep updating until the update function returns a 1
     int (*b)[l][w] = &before;
     int (*a)[l][w] = &after;
-    for (;;){
-        update(l,w,(*b),(*a));
-        print2DArray(l, w, (*b));
-        swap(l,w,&b, &a);
-        printf("Time Step!\n");
-    }
+    do {
+        print2DArray(l, w, (*a));      // print out after
+        swap(l,w,&b, &a);              // swap before and after
+        printf("Time Step!\n");        //
+    } while (!update(l,w,(*b),(*a)));  // update after from before
 }
