@@ -1,8 +1,6 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-#define START_HEIGHT 16
-
 // Prints out a 2d array
 void print2DArray(int l, int w, int a[l][w]){
     for (int i = 0; i < l; i++){
@@ -60,30 +58,43 @@ void swap(int l, int w, int (**a)[l][w], int (**b)[l][w]) {
 
 int main(int argc, char **argv) { 
 
-    if (argc != 3) {
-      fprintf(stderr,"usage: %s <length> <width>\n", argv[0]);
+    if (argc != 4) {
+      fprintf(stderr,"usage: %s <length> <width> <center height>\n", argv[0]);
       exit(0);
     }
   
     // init before and after arrays
     int l = atoi(argv[1]); // length
     int w = atoi(argv[2]); // width
+    int h = atoi(argv[3]); // center height
+    // make sure length and width are odd numbers
+    if (l % 2 == 0 || w % 2 == 0){
+      fprintf(stderr,"length and width must be odd numbers\n");
+      exit(0);
+    }
     int before[l][w];
     int after[l][w];
 
-    // set all elements to start height
+    // set all elements to 0
     for (int i = 0; i < l; i++){
         for(int j = 0; j < w; j++){
-            before[i][j] = START_HEIGHT;
-            after[i][j] = START_HEIGHT;
+            before[i][j] = 0;
+            after[i][j] = 0;
         }
     }
+    // set center to h
+    before[l/2][w/2] = h;
+    after[l/2][w/2] = h;
+    
     // keep updating until the update function returns a 1
     int (*b)[l][w] = &before;
     int (*a)[l][w] = &after;
     do {
         print2DArray(l, w, (*a));      // print out after
         swap(l,w,&b, &a);              // swap before and after
-        printf("Time Step!\n");        //
+        for (int i = 0; i < w; i++){   // make a horizontal bar
+            printf("--");
+        }
+        printf("\n");
     } while (!update(l,w,(*b),(*a)));  // update after from before
 }
