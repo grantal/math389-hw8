@@ -1,7 +1,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-#define HEIGHT_MAX 16
+#define START_HEIGHT 16
 
 // Prints out a 2d array
 void print2DArray(int l, int w, int a[l][w]){
@@ -71,11 +71,11 @@ int main(int argc, char **argv) {
     int before[l][w];
     int after[l][w];
 
-    // set all elements to max
+    // set all elements to start height
     for (int i = 0; i < l; i++){
         for(int j = 0; j < w; j++){
-            before[i][j] = HEIGHT_MAX;
-            after[i][j] = HEIGHT_MAX;
+            before[i][j] = START_HEIGHT;
+            after[i][j] = START_HEIGHT;
         }
     }
     // keep updating until the update function returns a 1
