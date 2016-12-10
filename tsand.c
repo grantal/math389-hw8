@@ -1,5 +1,6 @@
 #include <stdio.h>
 #include <stdlib.h>
+#include <pthread.h>
 
 // Prints out a 2d array
 void print2DArray(int l, int w, int a[l][w]){
@@ -12,13 +13,19 @@ void print2DArray(int l, int w, int a[l][w]){
 }
 
 // takes before and makes after the result after 1 application of
-// the rules of the sandpile
+// the rules of the sandpile for a region of the sandpile
 // returns 0 if the pile has changed from before to after and 1
 // if the pile has not changed
-int update(int l, int w, int before[l][w], int after[l][w]){
+// I don't use mutexes because the barrier ensures that no thread
+// will be writing to before while another is reading from before
+// (because this function does not modify before, so the only time
+// before gets written to is when it is considered "after" by some
+// thread)
+// and each thread only writes to its own region of after
+int update_region(int l, int w, int before[l][w], int after[l][w], int xmin, int xmax, int ymin, int ymax){
     int nochange = 1;
-    for (int i = 0; i < l; i++){
-        for(int j = 0; j < w; j++){
+    for (int i = ymin; i < ymax; i++){
+        for(int j = xmin; j < xmax; j++){
             // first set after to before            
             after[i][j] = before[i][j];
             // check if this pile needs toppling
@@ -56,6 +63,59 @@ void swap(int l, int w, int (**a)[l][w], int (**b)[l][w]) {
     *b = temp;
 }
 
+#define NO_THREADS 4 //number of threads
+
+int barrier = 0;
+pthread_mutex_t barrier_mutex;
+pthread_cond_t barrier_cond;
+
+// uses global variables to make threads wait until all are finished
+void barrier_wait(){
+    pthread_mutex_lock(&barrier_mutex);
+    if (barrier >= (NO_THREADS -1)){
+        barrier = 0;
+        for (int i = 1; i < NO_THREADS; i++){
+            pthread_cond_signal(&barrier_cond);
+        }
+    }
+    else {
+        barrier += 1;
+        pthread_cond_wait(&barrier_cond, &barrier_mutex);
+    }
+    pthread_mutex_unlock(&barrier_mutex);
+}
+
+typedef struct _region_t {
+    int l;          // size of the whole pile
+    int w;
+    void *b;        // pointers to before and after arrays 
+    void *a; 
+    int xmin;       // boundaries of this threads region
+    int xmax;       // of the pile
+    int ymin;
+    int ymax;
+    int tno;        // thread number
+} region_t;
+
+// thread for handling a region of the sandpile
+void *sand_region(void *ri){
+    region_t *r = (region_t *)ri;
+    // pointers to before and after arrays
+    int (*b)[r->l][r->w] = (int (*)[r->l][r->w])r->b; 
+    int (*a)[r->l][r->w] = (int (*)[r->l][r->w])r->a; 
+    while (1) {
+        if (r->tno == 1) {
+            print2DArray(r->l, r->w, (*b));  // print out before
+        }
+        swap(r->l,r->w,&b, &a);    // swap before and after
+        update_region(r->l,r->w,(*b),(*a),r->xmin,r->xmax,r->ymin,r->ymax);
+        barrier_wait();
+    }
+    pthread_exit(NULL);
+}
+
+
+
 int main(int argc, char **argv) { 
 
     if (argc != 4) {
@@ -86,15 +146,33 @@ int main(int argc, char **argv) {
     before[l/2][w/2] = h;
     after[l/2][w/2] = h;
     
-    // keep updating until the update function returns a 1
+    // make threads 
     int (*b)[l][w] = &before;
     int (*a)[l][w] = &after;
-    do {
-        print2DArray(l, w, (*a));      // print out after
-        swap(l,w,&b, &a);              // swap before and after
-        for (int i = 0; i < w; i++){   // make a horizontal bar
-            printf("--");
-        }
-        printf("\n");
-    } while (!update(l,w,(*b),(*a)));  // update after from before
+    pthread_t threads[NO_THREADS];
+    region_t *regions[NO_THREADS];
+    for (int i = 0; i < NO_THREADS; i++){
+        regions[i] = (region_t *)malloc(sizeof(region_t));
+        regions[i]->l = l;
+        regions[i]->w = w;
+        regions[i]->b = (void *)b;
+        regions[i]->a = (void *)a;
+        // each region will take up the entire width of the sandpile
+        // but only 1/NO_THREADS of the length
+        regions[i]->xmin = 0;
+        regions[i]->xmax = w;
+        regions[i]->ymin = (i*l)/NO_THREADS;
+        regions[i]->ymax = ((i+1)*l)/NO_THREADS;
+        regions[i]->tno = i+1;
+        printf("ymin:%d, ymax:%d\n", regions[i]->ymin, regions[i]->ymax);
+    }
+    pthread_cond_init (&barrier_cond, NULL);
+    pthread_mutex_init(&barrier_mutex, NULL);
+    for (int i = 0; i < NO_THREADS; i++){
+        pthread_create(&threads[i], NULL, sand_region, (void *)regions[i]);
+    }
+    for (int i = 0; i < NO_THREADS; i++){
+        pthread_join(threads[i], NULL);
+    }
+    pthread_exit(NULL);
 }
