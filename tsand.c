@@ -116,6 +116,7 @@ void *sand_region(void *ri){
     int (*b)[r->l][r->w] = (int (*)[r->l][r->w])r->b; 
     int (*a)[r->l][r->w] = (int (*)[r->l][r->w])r->a; 
     do {
+        /*
         if (r->tno == 1) {
             print2DArray(r->l, r->w, (*a)); // print out after
             for (int i = 0; i < r->w; i++){ // make a horizontal bar
@@ -123,6 +124,7 @@ void *sand_region(void *ri){
             }
             printf("\n");
         }
+        */
         swap(r->l,r->w,&b, &a);    // swap before and after
     // so, update_region will return with if the region has changed
     // or not, then that value gets passed as this region's "vote"
@@ -193,11 +195,15 @@ int main(int argc, char **argv) {
     }
     pthread_cond_init (&barrier_cond, NULL);
     pthread_mutex_init(&barrier_mutex, NULL);
+    clock_t start, diff;
+    start = clock();
     for (int i = 0; i < NO_THREADS; i++){
         pthread_create(&threads[i], NULL, sand_region, (void *)regions[i]);
     }
     for (int i = 0; i < NO_THREADS; i++){
         pthread_join(threads[i], NULL);
     }
+    diff = clock() - start; 
+    printf("%d threads took %lu cycles\n", NO_THREADS, diff);
     pthread_exit(NULL);
 }

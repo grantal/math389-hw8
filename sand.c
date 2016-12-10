@@ -1,5 +1,6 @@
 #include <stdio.h>
 #include <stdlib.h>
+#include <time.h>
 
 // Prints out a 2d array
 void print2DArray(int l, int w, int a[l][w]){
@@ -89,12 +90,11 @@ int main(int argc, char **argv) {
     // keep updating until the update function returns a 1
     int (*b)[l][w] = &before;
     int (*a)[l][w] = &after;
+    clock_t start, diff;
+    start = clock();
     do {
-        print2DArray(l, w, (*a));      // print out after
         swap(l,w,&b, &a);              // swap before and after
-        for (int i = 0; i < w; i++){   // make a horizontal bar
-            printf("--");
-        }
-        printf("\n");
     } while (!update(l,w,(*b),(*a)));  // update after from before
+    diff = clock() - start; 
+    printf("Single thread took %lu cycles\n", diff);
 }

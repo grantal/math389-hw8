@@ -1,0 +1,7 @@
+METHOD TO SPLIT UP WORK
+
+I split up the length of the region into 4 and each thread works on the entire width, but only 1/4 of the length. At the end of each step, there is a barrier that they all have to add to before continuing. To reach quiesence, they all vote on if they their regions have not changed, and the last thread to finish its calculations, sees if they all have quiesced, and then tells the threads that the sandpile has not changed. The threads then quit on their own. 
+
+REPORT OF SPEED
+
+Running the simulation on a 99x99 grid with 100000 starting height took 12515625 cycles on a single thread and 24312500 cycles on 4 threads.  
