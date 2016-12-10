@@ -66,14 +66,24 @@ void swap(int l, int w, int (**a)[l][w], int (**b)[l][w]) {
 #define NO_THREADS 4 //number of threads
 
 int barrier = 0;
+int tally = 0; // tally access will also be limited by barrier mutex
 pthread_mutex_t barrier_mutex;
 pthread_cond_t barrier_cond;
 
 // uses global variables to make threads wait until all are finished
-void barrier_wait(){
+// also takes a "vote" and has each thread vote on if they think the
+// simulation is finished, if they think it is, the simulation ends
+int barrier_wait(int vote){
+    int local_tally = 0;
     pthread_mutex_lock(&barrier_mutex);
+    // so when tally = NO_THREADS, the simulation is over
+    tally += vote;
     if (barrier >= (NO_THREADS -1)){
         barrier = 0;
+        if (tally < NO_THREADS) { 
+            // reset tally if threads disagree
+            tally = 0;
+        }
         for (int i = 1; i < NO_THREADS; i++){
             pthread_cond_signal(&barrier_cond);
         }
@@ -82,7 +92,9 @@ void barrier_wait(){
         barrier += 1;
         pthread_cond_wait(&barrier_cond, &barrier_mutex);
     }
+    local_tally = tally;
     pthread_mutex_unlock(&barrier_mutex);
+    return local_tally;
 }
 
 typedef struct _region_t {
@@ -103,14 +115,18 @@ void *sand_region(void *ri){
     // pointers to before and after arrays
     int (*b)[r->l][r->w] = (int (*)[r->l][r->w])r->b; 
     int (*a)[r->l][r->w] = (int (*)[r->l][r->w])r->a; 
-    while (1) {
+    do {
         if (r->tno == 1) {
-            print2DArray(r->l, r->w, (*b));  // print out before
+            print2DArray(r->l, r->w, (*b)); // print out before
+            for (int i = 0; i < r->w; i++){ // make a horizontal bar
+                printf("--");
+            }
+            printf("\n");
         }
         swap(r->l,r->w,&b, &a);    // swap before and after
-        update_region(r->l,r->w,(*b),(*a),r->xmin,r->xmax,r->ymin,r->ymax);
-        barrier_wait();
-    }
+        ;
+        ;
+    } while(barrier_wait(update_region(r->l,r->w,(*b),(*a),r->xmin,r->xmax,r->ymin,r->ymax)) < NO_THREADS);
     pthread_exit(NULL);
 }
 
@@ -161,6 +177,9 @@ int main(int argc, char **argv) {
         // but only 1/NO_THREADS of the length
         regions[i]->xmin = 0;
         regions[i]->xmax = w;
+        // the ymax of one thread will be the ymin of the next
+        // but thats okay because update_region updates the "ymin"th
+        // up to the "ymax-1"th row
         regions[i]->ymin = (i*l)/NO_THREADS;
         regions[i]->ymax = ((i+1)*l)/NO_THREADS;
         regions[i]->tno = i+1;
