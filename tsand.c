@@ -117,16 +117,23 @@ void *sand_region(void *ri){
     int (*a)[r->l][r->w] = (int (*)[r->l][r->w])r->a; 
     do {
         if (r->tno == 1) {
-            print2DArray(r->l, r->w, (*b)); // print out before
+            print2DArray(r->l, r->w, (*a)); // print out after
             for (int i = 0; i < r->w; i++){ // make a horizontal bar
                 printf("--");
             }
             printf("\n");
         }
         swap(r->l,r->w,&b, &a);    // swap before and after
-        ;
-        ;
-    } while(barrier_wait(update_region(r->l,r->w,(*b),(*a),r->xmin,r->xmax,r->ymin,r->ymax)) < NO_THREADS);
+    // so, update_region will return with if the region has changed
+    // or not, then that value gets passed as this region's "vote"
+    // into barrier_wait to see if the whole sandpile has changed or
+    // not, then that function returns how many threads' regions 
+    // have not changed, and if thats greater than or equal to 
+    // the number of threads, then the sandpile has quiesed
+    } while(barrier_wait(
+    update_region(r->l,r->w,(*b),(*a),
+                  r->xmin,r->xmax,r->ymin,r->ymax)) 
+            < NO_THREADS);
     pthread_exit(NULL);
 }
 
@@ -183,7 +190,6 @@ int main(int argc, char **argv) {
         regions[i]->ymin = (i*l)/NO_THREADS;
         regions[i]->ymax = ((i+1)*l)/NO_THREADS;
         regions[i]->tno = i+1;
-        printf("ymin:%d, ymax:%d\n", regions[i]->ymin, regions[i]->ymax);
     }
     pthread_cond_init (&barrier_cond, NULL);
     pthread_mutex_init(&barrier_mutex, NULL);
